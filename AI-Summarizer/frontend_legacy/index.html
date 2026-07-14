@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Text Summarizer — Smart Summarization Platform</title>
+  <meta name="description" content="AI-powered text summarization platform with PDF upload, keyword extraction, audio output, multilingual support, and Chat with PDF (RAG)." />
+  <meta name="keywords" content="AI summarizer, text summarization, PDF summarizer, NLP, keyword extraction, TTS, RAG, BART, T5" />
+  <meta name="author" content="AI Text Summarizer" />
+  <meta property="og:title" content="AI Text Summarizer" />
+  <meta property="og:description" content="Summarize text, PDFs, YouTube videos, and webpages with AI." />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
+</head>
+<body>
+
+<!-- Toast Container -->
+<div id="toast-container" aria-live="polite"></div>
+
+<!-- Auth Overlay -->
+<div id="auth-overlay" class="auth-overlay hidden">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🤖</div>
+      <h2 class="auth-logo-title">AI Summarizer</h2>
+      <p class="auth-logo-subtitle">Secure access to smart NLP platform</p>
+    </div>
+
+    <!-- Auth Tabs -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="auth-tab-login" data-tab="login">Sign In</button>
+      <button class="auth-tab" id="auth-tab-register" data-tab="register">Register</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form id="auth-form" class="auth-form" novalidate>
+      <div class="auth-input-group">
+        <label for="auth-username">Username</label>
+        <input type="text" id="auth-username" placeholder="e.g. admin" required autocomplete="username" />
+      </div>
+      <div class="auth-input-group">
+        <label for="auth-password">Password</label>
+        <input type="password" id="auth-password" placeholder="Enter password" required autocomplete="current-password" />
+      </div>
+      <div class="auth-input-group">
+        <label for="auth-app-password">Gmail App Password (Optional)</label>
+        <input type="password" id="auth-app-password" placeholder="abcd efgh ijkl mnop" />
+        <span style="font-size:11px;color:#94a3b8;margin-top:4px;display:block;">Leave blank to use system SMTP or Dev Mock Mode (123456).</span>
+      </div>
+      <div id="auth-error" class="auth-error"></div>
+      <button type="submit" id="auth-submit-btn" class="auth-submit-btn">⚡ Sign In</button>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form id="auth-register-form" class="auth-form" style="display:none;" novalidate>
+      <div class="auth-input-group">
+        <label for="reg-username">Username</label>
+        <input type="text" id="reg-username" placeholder="Choose a username" required autocomplete="username" />
+      </div>
+      <div class="auth-input-group">
+        <label for="reg-email">Email (Gmail)</label>
+        <input type="email" id="reg-email" placeholder="yourname@gmail.com" required autocomplete="email" />
+      </div>
+      <div class="auth-input-group">
+        <label for="reg-app-password">Gmail App Password (Optional)</label>
+        <input type="password" id="reg-app-password" placeholder="abcd efgh ijkl mnop" />
+        <span style="font-size:11px;color:#94a3b8;margin-top:4px;display:block;">Leave blank to use system SMTP or Dev Mock Mode (123456).</span>
+      </div>
+      <div class="auth-input-group">
+        <label for="reg-password">Password</label>
+        <input type="password" id="reg-password" placeholder="Min 6 characters" required autocomplete="new-password" />
+      </div>
+      <div class="auth-input-group">
+        <label for="reg-confirm">Confirm Password</label>
+        <input type="password" id="reg-confirm" placeholder="Repeat password" required autocomplete="new-password" />
+      </div>
+      <div id="reg-error" class="auth-error"></div>
+      <button type="submit" id="reg-submit-btn" class="auth-submit-btn">📩 Send OTP & Register</button>
+    </form>
+
+    <!-- OTP VERIFICATION -->
+    <div id="auth-otp-panel" class="auth-form" style="display:none;">
+      <div class="otp-header">
+        <span class="otp-icon">🔐</span>
+        <p class="otp-title">Verify Your Email</p>
+        <p class="otp-subtitle">Enter the 6-digit code sent to <strong id="otp-email-display"></strong></p>
+      </div>
+      <div class="otp-input-group">
+        <input type="text" class="otp-digit" maxlength="1" data-otp-idx="0" inputmode="numeric" autocomplete="one-time-code" />
+        <input type="text" class="otp-digit" maxlength="1" data-otp-idx="1" inputmode="numeric" />
+        <input type="text" class="otp-digit" maxlength="1" data-otp-idx="2" inputmode="numeric" />
+        <span class="otp-dash">—</span>
+        <input type="text" class="otp-digit" maxlength="1" data-otp-idx="3" inputmode="numeric" />
+        <input type="text" class="otp-digit" maxlength="1" data-otp-idx="4" inputmode="numeric" />
+        <input type="text" class="otp-digit" maxlength="1" data-otp-idx="5" inputmode="numeric" />
+      </div>
+      <div id="otp-error" class="auth-error"></div>
+      <button type="button" id="otp-verify-btn" class="auth-submit-btn">✅ Verify & Create Account</button>
+      <div class="otp-resend">
+        <span>Didn't receive code?</span>
+        <button type="button" id="otp-resend-btn" class="otp-resend-link">Resend OTP</button>
+      </div>
+    </div>
+
+    <div class="auth-footer">
+      Powered by AI NLP Engine
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     APP SHELL
+═══════════════════════════════════════════════════════ -->
+<div id="app" class="hidden">
+
+  <!-- ── SIDEBAR ─────────────────────────────────────── -->
+  <nav class="sidebar" id="sidebar" aria-label="Main Navigation">
+
+    <!-- Logo -->
+    <div class="sidebar-logo">
+      <div class="logo-icon" aria-hidden="true">🤖</div>
+      <div class="logo-text">
+        <span class="logo-title">AI Summarizer</span>
+        <span class="logo-subtitle">Smart NLP Platform</span>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="sidebar-nav" role="list">
+      <div class="nav-item active" data-section="summarize" data-subtitle="Paste and summarize any text" role="listitem" tabindex="0">
+        <span class="nav-icon" aria-hidden="true">⚡</span>
+        <span class="nav-label">Summarize</span>
+      </div>
+      <div class="nav-item" data-section="upload" data-subtitle="Upload PDF, DOCX, or TXT files" role="listitem" tabindex="0">
+        <span class="nav-icon" aria-hidden="true">📄</span>
+        <span class="nav-label">Upload File</span>
+      </div>
+      <div class="nav-item" data-section="keywords" data-subtitle="Keywords, sentiment, topics & questions" role="listitem" tabindex="0">
+        <span class="nav-icon" aria-hidden="true">🔍</span>
+        <span class="nav-label">Keywords & NLP</span>
+      </div>
+      <div class="nav-item" data-section="audio" data-subtitle="Convert summary to speech" role="listitem" tabindex="0">
+        <span class="nav-icon" aria-hidden="true">🔊</span>
+        <span class="nav-label">Audio TTS</span>
+      </div>
+
+      <div class="nav-item" data-section="history" data-subtitle="View past summaries" role="listitem" tabindex="0">
+        <span class="nav-icon" aria-hidden="true">🕐</span>
+        <span class="nav-label">History</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      <!-- API Status -->
+      <div style="display:flex;align-items:center;gap:8px;padding:8px;font-size:12px;color:var(--text-4);">
+        <span id="api-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text-4);flex-shrink:0;transition:all 0.3s;"></span>
+        <span id="api-status-label">Checking API…</span>
+      </div>
+      <!-- Theme Toggle -->
+      <div class="theme-toggle" id="theme-toggle" role="button" tabindex="0" aria-label="Toggle dark/light mode">
+        <span style="font-size:13px;">🌙 Dark Mode</span>
+        <div class="toggle-switch" aria-hidden="true">
+          <div class="toggle-knob"></div>
+        </div>
+      </div>
+      <!-- Logout Button -->
+      <button id="auth-logout-btn" class="logout-btn" aria-label="Logout from app">
+        🚪 Logout
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── MAIN CONTENT ───────────────────────────────── -->
+  <main class="main" id="main-content">
+
+    <!-- Top Bar -->
+    <div class="topbar">
+      <div class="topbar-title">
+        <button class="hamburger" id="hamburger-btn" aria-label="Toggle sidebar" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <span id="topbar-title">Summarize</span>
+        <span id="topbar-subtitle">Paste and summarize any text</span>
+      </div>
+      <div class="topbar-actions">
+        <span class="model-badge" id="active-model-badge">🤖 BART</span>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════
+         SECTION 1 — SUMMARIZE
+    ════════════════════════════════════════════════ -->
+    <section class="section active" id="section-summarize" aria-labelledby="sum-title">
+      <div class="section-header">
+        <h1 class="section-title" id="sum-title">⚡ Text Summarizer</h1>
+        <p class="section-subtitle">Paste any text and get an AI-generated summary in seconds.</p>
+      </div>
+
+      <div class="grid-2">
+        <!-- Input Card -->
+        <div class="card">
+          <div class="card-title"><span class="title-icon">✍️</span> Input Text</div>
+          <div class="textarea-wrapper">
+            <textarea
+              id="sum-text-input"
+              class="input-area"
+              placeholder="Paste your article, essay, research paper, or any text here (minimum 30 characters)…"
+              aria-label="Text to summarize"
+              rows="12"
+            ></textarea>
+            <span class="char-count" id="sum-char-count">0 chars | 0 words</span>
+          </div>
+
+          <!-- Controls -->
+          <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px;">
+
+
+            <!-- Length -->
+            <div>
+              <div style="font-size:13px;color:var(--text-3);margin-bottom:6px;">Summary Length</div>
+              <div class="radio-group" role="radiogroup" aria-label="Summary length">
+                <div class="radio-option">
+                  <input type="radio" name="sum-length" id="sum-short" value="short" />
+                  <label for="sum-short">📎 Short</label>
+                </div>
+                <div class="radio-option">
+                  <input type="radio" name="sum-length" id="sum-medium" value="medium" checked />
+                  <label for="sum-medium">📄 Medium</label>
+                </div>
+                <div class="radio-option">
+                  <input type="radio" name="sum-length" id="sum-detailed" value="detailed" />
+                  <label for="sum-detailed">📚 Detailed</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bullet Points -->
+            <label class="toggle-group" for="sum-bullets">
+              <input type="checkbox" id="sum-bullets" />
+              <span class="toggle-pill" aria-hidden="true"></span>
+              <span class="toggle-label">Bullet Point Format</span>
+            </label>
+          </div>
+
+          <!-- Actions -->
+          <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
+            <button id="sum-submit-btn" class="btn btn-primary btn-lg" style="flex:1;" aria-label="Generate summary">
+              ⚡ Summarize
+            </button>
+            <button id="sum-analyze-btn" class="btn btn-secondary" title="Go to NLP Analysis" aria-label="Analyze keywords and topics">
+              🔍 Analyze
+            </button>
+            <button id="sum-clear-btn" class="btn btn-secondary btn-icon" title="Clear" aria-label="Clear text">🗑️</button>
+          </div>
+        </div>
+
+        <!-- Output Card -->
+        <div class="card relative" id="sum-output-card">
+          <div class="loading-overlay" id="sum-loading"></div>
+          <div class="card-title"><span class="title-icon">✨</span> Summary</div>
+          <div id="sum-output" class="summary-output empty" aria-live="polite" aria-label="Generated summary">
+            Your AI-generated summary will appear here…
+          </div>
+
+          <!-- Stats -->
+          <div id="sum-stats" class="stats-grid" style="margin-top:16px;" aria-label="Summary statistics"></div>
+
+          <!-- Summary Actions -->
+          <div class="summary-actions">
+            <button id="sum-copy-btn" class="btn btn-secondary" aria-label="Copy summary">📋 Copy</button>
+            <button id="sum-download-btn" class="btn btn-secondary" aria-label="Download summary">💾 Download</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Highlights -->
+      <div class="grid-3" style="margin-top:8px;">
+        <div class="card" style="padding:16px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;">🧠</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-1);">BART & T5 Models</div>
+          <div style="font-size:12px;color:var(--text-4);margin-top:4px;">State-of-the-art offline models</div>
+        </div>
+        <div class="card" style="padding:16px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;">⚡</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-1);">Smart Chunking</div>
+          <div style="font-size:12px;color:var(--text-4);margin-top:4px;">Handles documents of any length</div>
+        </div>
+        <div class="card" style="padding:16px;text-align:center;">
+          <div style="font-size:28px;margin-bottom:8px;">🌍</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-1);">Multi-Language</div>
+          <div style="font-size:12px;color:var(--text-4);margin-top:4px;">20+ languages via Gemini</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════
+         SECTION 2 — UPLOAD
+    ════════════════════════════════════════════════ -->
+    <section class="section" id="section-upload" aria-labelledby="upload-title">
+      <div class="section-header">
+        <h1 class="section-title" id="upload-title">📄 File Upload</h1>
+        <p class="section-subtitle">Upload PDF, DOCX, or TXT files — extract text and summarize.</p>
+      </div>
+
+      <div class="grid-2">
+        <!-- Upload Controls -->
+        <div class="card">
+          <!-- Drop Zone -->
+          <div class="drop-zone" id="upload-drop-zone" role="button" tabindex="0" aria-label="File drop zone">
+            <input type="file" id="upload-file-input" accept=".pdf,.docx,.doc,.txt" aria-label="Choose file" />
+            <span class="drop-icon" aria-hidden="true">📂</span>
+            <div class="drop-title">Drop your file here</div>
+            <div class="drop-subtitle">or click to browse</div>
+            <div class="drop-formats">
+              <span class="format-badge">PDF</span>
+              <span class="format-badge">DOCX</span>
+              <span class="format-badge">TXT</span>
+            </div>
+          </div>
+
+          <!-- File Info -->
+          <div class="file-info-bar" id="upload-file-info" style="margin-top:12px;" aria-live="polite">
+            <span class="file-info-icon" aria-hidden="true">📄</span>
+            <div>
+              <div class="file-info-name">—</div>
+              <div class="file-info-size" style="font-size:12px;color:var(--text-4);">—</div>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px;">
+
+
+            <div>
+              <div style="font-size:13px;color:var(--text-3);margin-bottom:6px;">Summary Length</div>
+              <div class="radio-group" role="radiogroup">
+                <div class="radio-option"><input type="radio" name="upload-length" id="upload-short" value="short" /><label for="upload-short">📎 Short</label></div>
+                <div class="radio-option"><input type="radio" name="upload-length" id="upload-medium" value="medium" checked /><label for="upload-medium">📄 Medium</label></div>
+                <div class="radio-option"><input type="radio" name="upload-length" id="upload-detailed" value="detailed" /><label for="upload-detailed">📚 Detailed</label></div>
+              </div>
+            </div>
+
+            <label class="toggle-group" for="upload-bullets">
+              <input type="checkbox" id="upload-bullets" />
+              <span class="toggle-pill"></span>
+              <span class="toggle-label">Bullet Point Format</span>
+            </label>
+          </div>
+
+          <button id="upload-submit-btn" class="btn btn-primary btn-lg w-full mt-lg" aria-label="Extract and summarize file">
+            ⚡ Extract & Summarize
+          </button>
+        </div>
+
+        <!-- Output -->
+        <div class="card relative">
+          <div class="loading-overlay" id="upload-loading"></div>
+          <div class="card-title"><span class="title-icon">✨</span> Summary</div>
+          <div id="upload-output" class="summary-output empty" aria-live="polite">
+            Upload a file to see the summary here…
+          </div>
+          <div id="upload-stats" class="stats-grid" style="margin-top:16px;"></div>
+          <div class="summary-actions">
+            <button id="upload-copy-btn" class="btn btn-secondary">📋 Copy</button>
+            <button id="upload-download-btn" class="btn btn-secondary">💾 Download</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════
+         SECTION 3 — KEYWORDS & NLP
+    ════════════════════════════════════════════════ -->
+    <section class="section" id="section-keywords" aria-labelledby="kw-title">
+      <div class="section-header">
+        <h1 class="section-title" id="kw-title">🔍 Keywords & NLP</h1>
+        <p class="section-subtitle">Extract keywords, detect sentiment, topics, and auto-generate questions.</p>
+      </div>
+
+      <!-- Input -->
+      <div class="card">
+        <div class="card-title"><span class="title-icon">✍️</span> Input Text</div>
+        <div class="textarea-wrapper">
+          <textarea
+            id="kw-text-input"
+            class="input-area"
+            placeholder="Paste text to analyze… (or it will auto-fill from the Summarize tab)"
+            rows="7"
+            aria-label="Text for NLP analysis"
+          ></textarea>
+          <span class="char-count" id="kw-char-count">0 chars | 0 words</span>
+        </div>
+        <button id="kw-analyze-btn" class="btn btn-primary btn-lg mt-md" aria-label="Run full NLP analysis">
+          🔍 Run Full Analysis
+        </button>
+      </div>
+
+      <!-- Results Grid -->
+      <div class="grid-2">
+        <!-- Keywords -->
+        <div class="card">
+          <div class="card-title"><span class="title-icon">🏷️</span> Keywords & Keyphrases</div>
+          <div id="kw-keywords" class="keyword-cloud" aria-live="polite">
+            <span style="color:var(--text-4);font-size:13px;">Run analysis to see keywords…</span>
+          </div>
+        </div>
+
+        <!-- Sentiment -->
+        <div class="card">
+          <div class="card-title"><span class="title-icon">💭</span> Sentiment Analysis</div>
+          <div id="kw-sentiment" aria-live="polite">
+            <span style="color:var(--text-4);font-size:13px;">Run analysis to see sentiment…</span>
+          </div>
+        </div>
+
+        <!-- Topics -->
+        <div class="card">
+          <div class="card-title"><span class="title-icon">📌</span> Topic Detection</div>
+          <div id="kw-topics" aria-live="polite">
+            <span style="color:var(--text-4);font-size:13px;">Run analysis to detect topics…</span>
+          </div>
+        </div>
+
+        <!-- Highlighted Sentences -->
+        <div class="card">
+          <div class="card-title"><span class="title-icon">✏️</span> Key Sentences</div>
+          <div id="kw-highlights" aria-live="polite">
+            <span style="color:var(--text-4);font-size:13px;">Run analysis to highlight sentences…</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Questions (full width) -->
+      <div class="card">
+        <div class="card-title"><span class="title-icon">❓</span> Auto-Generated Questions</div>
+        <div id="kw-questions" aria-live="polite">
+          <span style="color:var(--text-4);font-size:13px;">Run analysis to generate questions…</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════
+         SECTION 4 — AUDIO TTS
+    ════════════════════════════════════════════════ -->
+    <section class="section" id="section-audio" aria-labelledby="audio-title">
+      <div class="section-header">
+        <h1 class="section-title" id="audio-title">🔊 Audio Summary</h1>
+        <p class="section-subtitle">Convert any summary or text to speech in 20+ languages.</p>
+      </div>
+
+      <div class="grid-2">
+        <!-- Input -->
+        <div class="card">
+          <div class="card-title"><span class="title-icon">✍️</span> Text to Speak</div>
+          <div class="textarea-wrapper">
+            <textarea
+              id="audio-text-input"
+              class="input-area"
+              placeholder="Paste text or click 'Use Current Summary' below…"
+              rows="10"
+              aria-label="Text to convert to speech"
+            ></textarea>
+          </div>
+
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px;">
+            <div class="flex items-center justify-between gap-md">
+              <label for="audio-lang" style="font-size:13px;color:var(--text-3);">Language</label>
+              <select id="audio-lang" class="styled-select" aria-label="TTS Language">
+                <option value="English">English</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Telugu">Telugu</option>
+                <option value="German">German</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
+            <button id="audio-generate-btn" class="btn btn-primary btn-lg" style="flex:1;" aria-label="Generate audio">
+              🔊 Generate Audio
+            </button>
+            <button id="audio-use-summary-btn" class="btn btn-secondary" title="Load current summary" aria-label="Use current summary">
+              📝 Use Summary
+            </button>
+          </div>
+        </div>
+
+        <!-- Player -->
+        <div class="card">
+          <div class="card-title"><span class="title-icon">🎵</span> Audio Player</div>
+
+          <!-- Waveform -->
+          <div id="audio-wave" class="audio-visualizer" aria-hidden="true"></div>
+
+          <!-- Native audio player -->
+          <audio id="audio-player" controls style="display:none;width:100%;margin-top:16px;" aria-label="Generated audio"></audio>
+
+          <div style="margin-top:16px;text-align:center;color:var(--text-4);font-size:13px;" id="audio-placeholder">
+            <span style="font-size:40px;display:block;margin-bottom:8px;">🎙️</span>
+            Generate audio to play it here
+          </div>
+
+          <!-- Download -->
+          <a id="audio-download-btn" class="btn btn-secondary mt-md" style="display:none;text-decoration:none;" aria-label="Download audio">
+            💾 Download MP3
+          </a>
+
+          <!-- Language info -->
+          <div style="margin-top:16px;padding:12px;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--r-md);">
+            <div style="font-size:12px;color:var(--text-4);margin-bottom:6px;">🌍 Supported Languages</div>
+            <div style="font-size:12px;color:var(--text-3);line-height:1.8;">
+              English, Hindi, Telugu, Tamil, Kannada, Malayalam, Bengali,<br>
+              Spanish, French, German, Japanese, Chinese, Arabic, Russian,<br>
+              Portuguese, Korean, Italian and more…
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ════════════════════════════════════════════════
+         SECTION 7 — HISTORY
+    ════════════════════════════════════════════════ -->
+    <section class="section" id="section-history" aria-labelledby="history-title">
+      <div class="section-header">
+        <h1 class="section-title" id="history-title">🕐 Summary History</h1>
+        <p class="section-subtitle">Browse and manage your past AI summaries.</p>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center justify-between gap-md" style="flex-wrap:wrap;">
+        <div style="font-size:13px;color:var(--text-4);">Your saved summaries from all sources</div>
+        <div class="flex gap-sm">
+          <button id="history-refresh-btn" class="btn btn-secondary" aria-label="Refresh history">🔄 Refresh</button>
+          <button id="history-clear-btn" class="btn btn-danger" aria-label="Clear all history">🗑️ Clear All</button>
+        </div>
+      </div>
+
+      <!-- History List -->
+      <div id="history-list" class="history-list" aria-label="History list" role="list">
+        <div class="skeleton" style="height:90px;border-radius:16px;"></div>
+        <div class="skeleton" style="height:90px;border-radius:16px;"></div>
+        <div class="skeleton" style="height:90px;border-radius:16px;"></div>
+      </div>
+    </section>
+
+  </main><!-- /main -->
+</div><!-- /app -->
+
+<!-- Scripts (ES Modules) -->
+<script type="module" src="js/app.js"></script>
+
+</body>
+</html>

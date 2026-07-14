@@ -1,0 +1,100 @@
+/* ══════════════════════════════════════════════════════
+   AI Text Summarizer — CSS Custom Properties
+   Dark Glassmorphism · Electric Violet × Cyan
+   ══════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Background Layers */
+  --bg-0: #060b18;
+  --bg-1: #0a0f1e;
+  --bg-2: #111827;
+  --bg-3: #1a2035;
+  --bg-4: #1f2a44;
+
+  /* Brand Colors */
+  --violet:        #7c3aed;
+  --violet-light:  #9f67ff;
+  --violet-dark:   #5b21b6;
+  --cyan:          #06b6d4;
+  --cyan-light:    #22d3ee;
+  --cyan-dark:     #0891b2;
+
+  /* Semantic Colors */
+  --success:  #10b981;
+  --warning:  #f59e0b;
+  --error:    #ef4444;
+  --info:     #3b82f6;
+
+  /* Gradients */
+  --grad-brand:   linear-gradient(135deg, var(--violet), var(--cyan));
+  --grad-violet:  linear-gradient(135deg, #7c3aed, #9f67ff);
+  --grad-cyan:    linear-gradient(135deg, #06b6d4, #22d3ee);
+  --grad-dark:    linear-gradient(180deg, #0a0f1e 0%, #060b18 100%);
+
+  /* Glass Effect */
+  --glass-bg:         rgba(255, 255, 255, 0.04);
+  --glass-bg-hover:   rgba(255, 255, 255, 0.07);
+  --glass-border:     rgba(255, 255, 255, 0.08);
+  --glass-border-accent: rgba(124, 58, 237, 0.4);
+
+  /* Text */
+  --text-1: #f1f5f9;
+  --text-2: #cbd5e1;
+  --text-3: #94a3b8;
+  --text-4: #64748b;
+
+  /* Sidebar */
+  --sidebar-w: 240px;
+
+  /* Spacing */
+  --gap-xs:  4px;
+  --gap-sm:  8px;
+  --gap-md:  16px;
+  --gap-lg:  24px;
+  --gap-xl:  32px;
+  --gap-2xl: 48px;
+
+  /* Radius */
+  --r-sm:  8px;
+  --r-md:  12px;
+  --r-lg:  16px;
+  --r-xl:  24px;
+  --r-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.4);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.6);
+  --shadow-glow: 0 0 32px rgba(124, 58, 237, 0.25);
+  --shadow-cyan: 0 0 32px rgba(6, 182, 212, 0.2);
+
+  /* Transitions */
+  --t-fast:   0.15s ease;
+  --t-normal: 0.25s ease;
+  --t-slow:   0.4s ease;
+
+  /* Font */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Light Mode */
+[data-theme="light"] {
+  --bg-0: #f8fafc;
+  --bg-1: #f1f5f9;
+  --bg-2: #e2e8f0;
+  --bg-3: #cbd5e1;
+  --bg-4: #94a3b8;
+  --glass-bg:       rgba(255, 255, 255, 0.7);
+  --glass-bg-hover: rgba(255, 255, 255, 0.85);
+  --glass-border:   rgba(0, 0, 0, 0.1);
+  --text-1: #0f172a;
+  --text-2: #1e293b;
+  --text-3: #475569;
+  --text-4: #94a3b8;
+  --shadow-sm:  0 2px 8px rgba(0,0,0,0.08);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.12);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.16);
+}

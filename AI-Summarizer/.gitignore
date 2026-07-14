@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Project-specific
+backend/uploads/
+backend/audio/
+backend/chroma_db/
+backend/summarizer.db
+*.db
+*.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Frontend build artifacts
+frontend/node_modules/
+
+# Logs
+*.log
+
+# Environment secrets
+.env.local
+.env.*.local
+frontend/js/env.js
