@@ -3,7 +3,10 @@
  * All backend calls go through this module.
  */
 
-const BASE = import.meta.env.VITE_API_BASE_URL || '';
+let BASE = import.meta.env.VITE_API_BASE_URL || '';
+if (BASE.endsWith('/')) {
+  BASE = BASE.slice(0, -1);
+}
 
 async function apiFetch(endpoint, options = {}) {
   const url = `${BASE}${endpoint}`;
