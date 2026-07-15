@@ -10,11 +10,11 @@ import glob
 import pickle
 import json
 import re
-import math
 import numpy as np
 from collections import Counter
 from pathlib import Path
 from dotenv import load_dotenv
+import google.generativeai as genai  # type: ignore
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
@@ -26,21 +26,35 @@ _gemini_quota_exceeded = False
 # Embedding & TF-IDF Cosine Fallback Helpers
 # ─────────────────────────────────────────────
 
+_working_embedding_model = None
+
 def _get_gemini_embeddings(texts: list[str], task_type: str = "retrieval_document") -> list[list[float]] | None:
-    """Fetch dense embeddings from Gemini Cloud API (models/text-embedding-004)."""
+    """Fetch dense embeddings from Gemini Cloud API (with model fallback)."""
+    global _working_embedding_model
     api_key = os.getenv("GEMINI_API_KEY", "")
     if not api_key or api_key == "your_gemini_api_key_here":
         return None
     try:
-        import google.generativeai as genai
         genai.configure(api_key=api_key)
-        # Call the embed_content API
-        result = genai.embed_content(
-            model="models/text-embedding-004",
-            contents=texts,
-            task_type=task_type
-        )
-        return result.get("embedding")
+        
+        models_to_try = [_working_embedding_model] if _working_embedding_model else ["models/text-embedding-004", "models/gemini-embedding-001", "models/gemini-embedding-2"]
+        
+        for model in models_to_try:
+            if not model:
+                continue
+            try:
+                result = genai.embed_content(
+                    model=model,
+                    content=texts,
+                    task_type=task_type
+                )
+                _working_embedding_model = model
+                return result.get("embedding")
+            except Exception as e:
+                print(f"[Plagiarism Embedding] Embedding with {model} failed: {e}")
+                if _working_embedding_model == model:
+                    _working_embedding_model = None
+        return None
     except Exception as e:
         print(f"[Plagiarism Embedding] Gemini cloud embedding failed: {e}")
         return None
@@ -49,71 +63,76 @@ def _tokenize(text: str) -> list[str]:
     """Tokenize string into lowercase alphanumeric words."""
     return re.findall(r"\b\w+\b", text.lower())
 
-def _tfidf_similarity_fallback(query: str, corpus: list[str]) -> list[float]:
+def _tfidf_similarity_batch(query_chunks: list[str], doc_chunks: list[str]) -> list[list[float]]:
     """
-    Compute Cosine Similarity between a query string and a list of corpus strings
-    using a pure-Python TF-IDF implementation.
-    Returns: list of float scores matching the corpus length.
+    Compute Cosine Similarity between a list of query chunks and a list of document chunks
+    using an optimized batch TF-IDF implementation.
+    Returns: 2D list where result[i][j] is similarity of query_chunks[i] with doc_chunks[j].
     """
-    if not query or not corpus:
-        return [0.0] * len(corpus)
+    if not query_chunks or not doc_chunks:
+        return [[0.0] * len(doc_chunks) for _ in query_chunks]
 
     # 1. Tokenize corpus & query
-    corpus_tokens = [_tokenize(doc) for doc in corpus]
-    query_tokens = _tokenize(query)
+    doc_tokens = [_tokenize(doc) for doc in doc_chunks]
+    query_tokens = [_tokenize(q) for q in query_chunks]
     
-    # 2. Compute IDF
-    num_docs = len(corpus)
-    doc_freq = Counter()
-    for tokens in corpus_tokens:
+    # 2. Get unique terms across all documents to build vocabulary
+    vocab = {}
+    for tokens in doc_tokens:
+        for t in tokens:
+            if t not in vocab:
+                vocab[t] = len(vocab)
+                
+    num_docs = len(doc_chunks)
+    num_queries = len(query_chunks)
+    vocab_size = len(vocab)
+    
+    if vocab_size == 0:
+        return [[0.0] * len(doc_chunks) for _ in query_chunks]
+
+    # 3. Compute IDF for the document corpus
+    doc_freq = np.zeros(vocab_size)
+    for tokens in doc_tokens:
         unique_tokens = set(tokens)
         for t in unique_tokens:
-            doc_freq[t] += 1
-            
-    idf = {}
-    for term, freq in doc_freq.items():
-        idf[term] = math.log((1 + num_docs) / (1 + freq)) + 1
-        
-    for t in query_tokens:
-        if t not in idf:
-            idf[t] = math.log((1 + num_docs) / 1) + 1
+            if t in vocab:
+                doc_freq[vocab[t]] += 1
+                
+    idf = np.log((1 + num_docs) / (1 + doc_freq)) + 1
 
-    # 3. Vectorize function
-    def get_vector(tokens):
+    # 4. Vectorize document chunks into a TF-IDF matrix (shape: num_docs, vocab_size)
+    doc_matrix = np.zeros((num_docs, vocab_size))
+    for i, tokens in enumerate(doc_tokens):
         tf = Counter(tokens)
-        vec = {}
         for term, count in tf.items():
-            vec[term] = count * idf.get(term, 1.0)
-        return vec
+            if term in vocab:
+                idx = vocab[term]
+                doc_matrix[i, idx] = count * idf[idx]
 
-    # 4. Cosine Similarity helper
-    def cosine_sim(vec1, vec2):
-        dot = 0.0
-        for term, val1 in vec1.items():
-            if term in vec2:
-                dot += val1 * vec2[term]
-        
-        norm1 = math.sqrt(sum(val ** 2 for val in vec1.values()))
-        norm2 = math.sqrt(sum(val ** 2 for val in vec2.values()))
-        
-        if norm1 == 0.0 or norm2 == 0.0:
-            return 0.0
-        return dot / (norm1 * norm2)
+    # Normalize document vectors
+    doc_norms = np.linalg.norm(doc_matrix, axis=1, keepdims=True)
+    doc_norms[doc_norms == 0] = 1e-10
+    doc_matrix_normalized = doc_matrix / doc_norms
 
-    # 5. Compute similarities
-    query_vec = get_vector(query_tokens)
-    scores = []
-    for tokens in corpus_tokens:
-        doc_vec = get_vector(tokens)
-        scores.append(cosine_sim(query_vec, doc_vec))
-        
-    return scores
+    # 5. Vectorize query chunks (shape: num_queries, vocab_size)
+    query_matrix = np.zeros((num_queries, vocab_size))
+    for i, tokens in enumerate(query_tokens):
+        tf = Counter(tokens)
+        for term, count in tf.items():
+            if term in vocab:
+                idx = vocab[term]
+                query_matrix[i, idx] = count * idf[idx]
 
-def _cosine_similarity(query_vec: np.ndarray, matrix: np.ndarray) -> list[float]:
-    """Compute cosine similarity between 1-D query and each row of matrix."""
-    q_norm = query_vec / (np.linalg.norm(query_vec) + 1e-10)
-    m_norm = matrix / (np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-10)
-    return (m_norm @ q_norm).tolist()
+    # Normalize query vectors
+    query_norms = np.linalg.norm(query_matrix, axis=1, keepdims=True)
+    query_norms[query_norms == 0] = 1e-10
+    query_matrix_normalized = query_matrix / query_norms
+
+    # 6. Compute cosine similarities (shape: num_queries, num_docs)
+    sim_matrix = query_matrix_normalized @ doc_matrix_normalized.T
+    return sim_matrix.tolist()
+
+
 
 def _chunk_text(text: str, chunk_size: int = 150, overlap: int = 30) -> list[str]:
     """Split text into sentences or small phrases for plagiarism check."""
@@ -186,14 +205,22 @@ def check_plagiarism_local(text: str) -> dict:
                     if chunk_embeddings.shape[1] == doc_embeddings.shape[1]:
                         use_dense = True
 
+            if use_dense:
+                # Compute batch cosine similarities for dense embeddings
+                doc_norms = np.linalg.norm(doc_embeddings, axis=1, keepdims=True) + 1e-10
+                m_norm = doc_embeddings / doc_norms
+                
+                chunk_norms = np.linalg.norm(chunk_embeddings, axis=1, keepdims=True) + 1e-10
+                q_norm = chunk_embeddings / chunk_norms
+                
+                all_similarities = (q_norm @ m_norm.T).tolist()
+            else:
+                # Fallback to batch TF-IDF
+                all_similarities = _tfidf_similarity_batch(chunks, doc_chunks)
+
             # Check similarity of each input chunk against this document
             for i, chunk_text in enumerate(chunks):
-                if use_dense:
-                    similarities = _cosine_similarity(chunk_embeddings[i], doc_embeddings)
-                else:
-                    # Fallback to TF-IDF
-                    similarities = _tfidf_similarity_fallback(chunk_text, doc_chunks)
-
+                similarities = all_similarities[i]
                 max_sim = max(similarities)
                 max_idx = similarities.index(max_sim)
 
@@ -274,7 +301,6 @@ def check_plagiarism_global(text: str) -> dict:
         raise ValueError("GEMINI_API_KEY is not configured in your .env file.")
 
     try:
-        import google.generativeai as genai
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"))
 
@@ -482,7 +508,6 @@ def humanize_text(text: str) -> str:
 
     # Try Gemini first
     try:
-        import google.generativeai as genai
         api_key = os.getenv("GEMINI_API_KEY", "")
         if not api_key or api_key.startswith("your_"):
             raise ValueError("Gemini key not set")

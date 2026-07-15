@@ -10,6 +10,7 @@ import pickle
 import numpy as np
 from pathlib import Path
 from dotenv import load_dotenv
+import google.generativeai as genai  # type: ignore
 
 # Load env variables
 load_dotenv()
@@ -19,19 +20,56 @@ STORAGE_DIR = os.getenv("CHROMA_DB_DIR", "chroma_db")
 EMBED_MODEL = "all-MiniLM-L6-v2"
 TOP_K = 4
 
-# Global cached embedding model
-_embed_model = None
 
-def _get_embedder():
-    """Lazy loads or returns the SentenceTransformer embedding model."""
-    global _embed_model
-    if _embed_model is None:
-        # pyrefly: ignore [missing-import]
-        from sentence_transformers import SentenceTransformer
-        print(f"[RAG] Loading embedding model: {EMBED_MODEL}...")
-        _embed_model = SentenceTransformer(EMBED_MODEL)
-        print("[RAG] Embedding model loaded")
-    return _embed_model
+_working_embedding_model = None
+
+def _get_embeddings_gemini(texts: list[str]) -> tuple[np.ndarray, str]:
+    """Computes dense document embeddings using Gemini API (with model fallback)."""
+    if not _has_valid_gemini_key():
+        raise ValueError("GEMINI_API_KEY is not set or is invalid in .env.")
+    
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    
+    global _working_embedding_model
+    models_to_try = [_working_embedding_model] if _working_embedding_model else ["models/text-embedding-004", "models/gemini-embedding-001", "models/gemini-embedding-2"]
+    
+    last_err = None
+    for model in models_to_try:
+        if not model:
+            continue
+        try:
+            response = genai.embed_content(
+                model=model,
+                content=texts,
+                task_type="retrieval_document"
+            )
+            _working_embedding_model = model
+            return np.array(response["embedding"], dtype=np.float32), model
+        except Exception as e:
+            last_err = e
+            print(f"[RAG Embedding] Embedding with {model} failed: {e}")
+            if _working_embedding_model == model:
+                _working_embedding_model = None
+                
+    raise RuntimeError(f"Failed to generate document embeddings via Gemini: {last_err}")
+
+
+def _get_query_embedding_gemini(query: str, model_name: str = "models/text-embedding-004") -> np.ndarray:
+    """Computes a query embedding using Gemini API."""
+    if not _has_valid_gemini_key():
+        raise ValueError("GEMINI_API_KEY is not set or is invalid in .env.")
+        
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    
+    try:
+        response = genai.embed_content(
+            model=model_name,
+            content=query,
+            task_type="retrieval_query"
+        )
+        return np.array(response["embedding"], dtype=np.float32)
+    except Exception as e:
+        raise RuntimeError(f"Failed to generate query embedding via Gemini ({model_name}): {e}")
 
 
 def _chunk_text(text: str, chunk_size: int = 600, overlap: int = 150) -> list[str]:
@@ -53,16 +91,15 @@ def _chunk_text(text: str, chunk_size: int = 600, overlap: int = 150) -> list[st
 
 
 def index_document(text: str, doc_name: str = "document") -> dict:
-    """Chunks the text, computes dense embeddings locally, and saves them to a pickle database."""
+    """Chunks the text, computes dense embeddings via Gemini API, and saves them to a pickle database."""
     os.makedirs(STORAGE_DIR, exist_ok=True)
 
     chunks = _chunk_text(text)
     if not chunks:
         raise ValueError("Document produced no chunks after splitting.")
 
-    embedder = _get_embedder()
-    # Compute embeddings (shape: N, 384)
-    embeddings = embedder.encode(chunks, show_progress_bar=False)
+    # Compute cloud embeddings and retrieve the working model used
+    embeddings, model_name = _get_embeddings_gemini(chunks)
 
     session_id = uuid.uuid4().hex[:12]
     payload = {
@@ -70,6 +107,7 @@ def index_document(text: str, doc_name: str = "document") -> dict:
         "doc_name":   doc_name,
         "chunks":     chunks,
         "embeddings": embeddings,      # numpy ndarray
+        "model_name": model_name,      # track which model was used
     }
 
     save_path = os.path.join(STORAGE_DIR, f"{session_id}.pkl")
@@ -102,10 +140,18 @@ def query_document(question: str, session_id: str, top_k: int = TOP_K) -> dict:
         payload = pickle.load(f)
 
     chunks = payload["chunks"]
-    embeddings = payload["embeddings"]  # shape: (N, 384)
+    embeddings = payload["embeddings"]  # shape: (N, dim)
 
-    embedder = _get_embedder()
-    q_vec = embedder.encode([question], show_progress_bar=False)[0] # shape: (384,)
+    # Determine which model was used to index this document
+    model_name = payload.get("model_name")
+    if not model_name:
+        dim = embeddings.shape[1] if len(embeddings.shape) > 1 else 768
+        if dim == 3072:
+            model_name = "models/gemini-embedding-001"
+        else:
+            model_name = "models/text-embedding-004"
+
+    q_vec = _get_query_embedding_gemini(question, model_name=model_name) # shape: (dim,)
 
     # Compute cosine similarities manually: dot(A, B) / (norm(A) * norm(B))
     norms = np.linalg.norm(embeddings, axis=1)
@@ -152,9 +198,6 @@ def _generate_answer_gemini(question: str, context: str) -> str:
         raise ValueError("GEMINI_API_KEY is not configured or is invalid.")
 
     try:
-        import importlib
-        from typing import Any
-        genai: Any = importlib.import_module("google.generativeai")
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
         
         prompt = (

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { checkPlagiarism, humanizeText } from '../../api/client';
 import toast from 'react-hot-toast';
 
@@ -519,7 +519,7 @@ export default function PlagiarismSection() {
               
               <textarea
                 className={`unique-textarea ${wordCount > 0 ? (isWordCountValid ? 'valid' : 'invalid') : ''}`}
-                placeholder="Paste text here to evaluate originality (minimum 1,500 words, maximum 10,000 words)..."
+                placeholder="Paste text here to evaluate originality (minimum 10 words, maximum 10,000 words)..."
                 value={text}
                 onChange={e => setText(e.target.value)}
                 style={{ minHeight: 220, resize: 'vertical' }}

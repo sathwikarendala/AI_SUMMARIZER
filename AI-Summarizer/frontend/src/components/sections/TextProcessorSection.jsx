@@ -2,10 +2,6 @@ import { useState, useCallback } from 'react';
 import { analyzeText, humanizeText } from '../../api/client';
 import toast from 'react-hot-toast';
 
-function formatNumber(num) {
-  return num.toLocaleString();
-}
-
 function CircularProgress({ value, label, color }) {
   const radius = 50;
   const stroke = 8;

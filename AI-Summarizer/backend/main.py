@@ -38,13 +38,8 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
 
-    # Eagerly pre-load the RAG embedding model to prevent first-request timeouts
-    try:
-        from services.rag_service import _get_embedder
-        print("[Startup] Pre-loading RAG embedding model...")
-        _get_embedder()
-    except Exception as e:
-        print(f"[Startup] Warning: Failed to pre-load embedding model: {e}")
+    # Log cloud RAG engine status on startup
+    print("[Startup] RAG engine initialized with Google Gemini cloud embeddings (text-embedding-004)")
 
 
 

@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { uploadChatFile, queryChat, deleteChatSession } from '../../api/client';
 import toast from 'react-hot-toast';
 import './ChatSection.css';
 
 export default function ChatSection() {
-  const [file, setFile] = useState(null);
+  const [_file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   

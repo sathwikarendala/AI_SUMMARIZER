@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 
 export default function SummarizeSection({ onSummaryChange }) {
   const [text, setText] = useState('');
-  const [model, setModel] = useState('auto');
   const [lengthMode, setLengthMode] = useState('medium');
   const [bulletPoints, setBulletPoints] = useState(false);
   const [language, setLanguage] = useState('English');
@@ -23,7 +22,7 @@ export default function SummarizeSection({ onSummaryChange }) {
     setLoading(true);
     setSummary('');
     try {
-      const result = await summarizeText({ text, modelName: model, lengthMode, bulletPoints, language });
+      const result = await summarizeText({ text, modelName: 'auto', lengthMode, bulletPoints, language });
       setSummary(result.summary);
       setStats(result);
       onSummaryChange?.(result.summary);
@@ -33,7 +32,7 @@ export default function SummarizeSection({ onSummaryChange }) {
     } finally {
       setLoading(false);
     }
-  }, [text, model, lengthMode, bulletPoints, language, onSummaryChange]);
+  }, [text, lengthMode, bulletPoints, language, onSummaryChange]);
 
   const handleCopy = () => {
     if (summary) {

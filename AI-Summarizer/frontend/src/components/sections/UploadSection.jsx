@@ -10,7 +10,6 @@ function formatFileSize(bytes) {
 
 export default function UploadSection({ onSummaryChange }) {
   const [file, setFile] = useState(null);
-  const [model, setModel] = useState('auto');
   const [lengthMode, setLengthMode] = useState('medium');
   const [bulletPoints, setBulletPoints] = useState(false);
   const [language, setLanguage] = useState('English');
@@ -26,7 +25,7 @@ export default function UploadSection({ onSummaryChange }) {
     setLoading(true);
     setSummary('');
     try {
-      const result = await uploadFile(file, { modelName: model, lengthMode, bulletPoints, language });
+      const result = await uploadFile(file, { modelName: 'auto', lengthMode, bulletPoints, language });
       setSummary(result.summary || '');
       setStats(result);
       onSummaryChange?.(result.summary);
@@ -36,7 +35,7 @@ export default function UploadSection({ onSummaryChange }) {
     } finally {
       setLoading(false);
     }
-  }, [file, model, lengthMode, bulletPoints, language, onSummaryChange]);
+  }, [file, lengthMode, bulletPoints, language, onSummaryChange]);
 
   const handleCopy = () => {
     if (summary) { navigator.clipboard.writeText(summary); toast.success('Copied!'); }
