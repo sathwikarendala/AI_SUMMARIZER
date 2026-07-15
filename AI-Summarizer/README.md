@@ -2,6 +2,9 @@
 
 > A full-stack, AI-powered text summarization platform with **PDF upload**, **keyword extraction**, **audio output**, **multilingual support**, and **Chat with AI (RAG)**.
 
+🔗 **Live Website Demo:** [https://ai-summarizer-three-gamma.vercel.app/](https://ai-summarizer-three-gamma.vercel.app/)  
+🔗 **Live Backend API Docs:** [https://ai-summarizer-backend-isog.onrender.com/docs](https://ai-summarizer-backend-isog.onrender.com/docs)
+
 ![Stack](https://img.shields.io/badge/Stack-FastAPI%20%2B%20HTML%2FCSS%2FJS-7c3aed?style=flat-square)
 ![Models](https://img.shields.io/badge/Models-BART%20%7C%20T5%20%7C%20Gemini-06b6d4?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-10b981?style=flat-square)
