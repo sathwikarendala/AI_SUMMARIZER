@@ -7,7 +7,7 @@ import App from './App.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ClerkProvider afterSignOutUrl="/">
+    <ClerkProvider publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_cmVsYXRlZC1tYWNhdy0zMy5jbGVyay5hY2NvdW50cy5kZXYk"} afterSignOutUrl="/">
       <App />
     </ClerkProvider>
   </StrictMode>
