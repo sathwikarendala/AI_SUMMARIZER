@@ -95,10 +95,14 @@ export async function runFullAnalysis(text) {
 
 // ─── Audio TTS ─────────────────────────────────────────
 export async function generateAudio(text, language = 'English') {
-  return apiFetch('/api/audio', {
+  const result = await apiFetch('/api/audio', {
     method: 'POST',
     body: JSON.stringify({ text, language }),
   });
+  if (result && result.audio_url && !result.audio_url.startsWith('http')) {
+    result.audio_url = `${BASE}${result.audio_url}`;
+  }
+  return result;
 }
 
 export async function fetchLanguages() {
